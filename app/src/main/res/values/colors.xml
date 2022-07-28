@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#EF6A32</color>
+    <color name="colorPrimaryDark">#EF6A32</color>
+    <color name="colorAccent">#EF6A32</color>
+
+
+    <color name="whiteColor">#FFFFFF</color>
+    <color name="whiteBg">#BCFFFFFF</color>
+    <color name="blackColor">#000000</color>
+    <color name="grayColor">#dddddd</color>
+    <color name="grayColorDark">#B1B1B1</color>
+
+    <color name="md_grey_800">#424242</color>
+    <color name="md_grey_400">#BDBDBD</color>
+
+    <color name="ashColor">#f2f2f2</color>
+    <color name="text_color">#050B30</color>
+    <color name="black">#000000</color>
+    <color name="ripple_color_green">#1A67BE96</color>
+</resources>
