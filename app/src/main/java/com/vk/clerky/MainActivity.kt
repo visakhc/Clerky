@@ -1,39 +1,81 @@
 package com.vk.clerky
 
+import android.app.ActivityManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Button
+import android.widget.EditText
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 @RequiresApi(Build.VERSION_CODES.M)
 class MainActivity : AppCompatActivity() {
-    private var DRAW_REQUEST_CODE = 0
+
+    private var minimizeBtn: Button? = null
+    private var dialog: AlertDialog? = null
+    private var descEditArea: EditText? = null
+    private var save: Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this@MainActivity)) {
-            val intent =
-                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-            startActivityForResult(intent, DRAW_REQUEST_CODE)
-        } else if (Settings.canDrawOverlays(this@MainActivity)) {
-            logThis("canDrawOverlays")
-            val intent = Intent(this@MainActivity, ForegroundService::class.java)
-            startService(intent)
+
+        minimizeBtn = findViewById(R.id.buttonMinimize)
+        descEditArea = findViewById(R.id.descEditText)
+        save = findViewById(R.id.saveBtn)
+
+        if (isMyServiceRunning()) {
+            stopService(Intent(this@MainActivity, ForegroundService::class.java))
+        }
+        startService(Intent(this@MainActivity, ForegroundService::class.java))
+        finish()
+        minimizeBtn?.setOnClickListener {
+            if (checkOverlayDisplayPermission()) {
+                startService(Intent(this@MainActivity, ForegroundService::class.java))
+                finish()
+            } else {
+                requestOverlayDisplayPermission()
+            }
+        }
+
+    }
+
+    private fun isMyServiceRunning(): Boolean {
+        val manager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (ForegroundService::class.java.name == service.service.className) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun checkOverlayDisplayPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == DRAW_REQUEST_CODE) {
-            if (Settings.canDrawOverlays(this)) {
-                val intent = Intent(this, ForegroundService::class.java)
-                startService(intent)
-            }
+    private fun requestOverlayDisplayPermission() {
+        val builder = AlertDialog.Builder(this)
+        builder.setCancelable(true)
+        builder.setTitle("Screen Overlay Permission Needed")
+        builder.setMessage("Enable 'Display over other apps' from System Settings.")
+        builder.setPositiveButton("Open Settings") { _, _ ->
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(intent, RESULT_OK)
         }
+        dialog = builder.create()
+        dialog?.show()
     }
-    val cont = this@MainActivity
+
 }
