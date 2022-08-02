@@ -31,8 +31,12 @@ class MainActivity : AppCompatActivity() {
         if (isMyServiceRunning()) {
             stopService(Intent(this@MainActivity, ForegroundService::class.java))
         }
-        startService(Intent(this@MainActivity, ForegroundService::class.java))
-        finish()
+        if (checkOverlayDisplayPermission()) {
+            startService(Intent(this@MainActivity, ForegroundService::class.java))
+            finish()
+        } else {
+            requestOverlayDisplayPermission()
+        }
         minimizeBtn?.setOnClickListener {
             if (checkOverlayDisplayPermission()) {
                 startService(Intent(this@MainActivity, ForegroundService::class.java))

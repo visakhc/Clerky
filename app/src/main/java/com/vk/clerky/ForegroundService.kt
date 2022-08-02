@@ -11,12 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import android.view.*
 import android.view.View.OnTouchListener
-import android.view.inputmethod.InputMethodManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.core.widget.doOnTextChanged
 import com.vk.clerky.databinding.FloatingLayoutBinding
 
 
@@ -28,9 +23,6 @@ class ForegroundService : Service() {
     private var LAYOUT_TYPE = 0
     private var floatWindowLayoutParam: WindowManager.LayoutParams? = null
     private var windowManager: WindowManager? = null
-    private var maximizeBtn: Button? = null
-    private var descEditArea: EditText? = null
-    private var saveBtn: Button? = null
     private var binding: FloatingLayoutBinding? = null
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -52,12 +44,8 @@ class ForegroundService : Service() {
         binding = FloatingLayoutBinding.inflate(LayoutInflater.from(this))
 
         // maximizeBtn = floatView?.findViewById(R.id.buttonMaximize)
-        //    descEditArea = floatView?.findViewById(R.id.descEditText)
-        //  saveBtn = floatView?.findViewById(R.id.saveBtn)
-
-        descEditArea?.setText(Common.currentDesc)
-        descEditArea?.setSelection(descEditArea?.text.toString().length)
-        descEditArea?.isCursorVisible = false
+        // descEditArea = floatView?.findViewById(R.id.descEditText)
+        // saveBtn = floatView?.findViewById(R.id.saveBtn)
 
 
         LAYOUT_TYPE = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -66,13 +54,16 @@ class ForegroundService : Service() {
             WindowManager.LayoutParams.TYPE_TOAST
         }
         floatWindowLayoutParam = WindowManager.LayoutParams(
-            (width * 0.55f).toInt(), (height * 0.58f).toInt(),
+/*(width * 0.25f).toInt(), (height * 0.58f).toInt(),*/
+            /*   LinearLayout.LayoutParams.WRAP_CONTENT,
+               LinearLayout.LayoutParams.WRAP_CONTENT,*/
+            700, 700,
             LAYOUT_TYPE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         )
 
-        floatWindowLayoutParam?.gravity = Gravity.RIGHT or Gravity.END
+        floatWindowLayoutParam?.gravity = Gravity.CENTER
         floatWindowLayoutParam?.x = 0
         floatWindowLayoutParam?.y = 0
 
@@ -82,20 +73,8 @@ class ForegroundService : Service() {
             turnOnFlash()
         }
 
-        maximizeBtn?.setOnClickListener {
-            stopSelf()
-            windowManager?.removeView(binding?.root)
-            val backToHome = Intent(this@ForegroundService, MainActivity::class.java)
-            backToHome.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            startActivity(backToHome)
-        }
 
-        descEditArea?.doOnTextChanged { text, start, before, count ->
-            Common.currentDesc = descEditArea?.text.toString()
-        }
-
-
-        floatView?.setOnTouchListener(object : OnTouchListener {
+        binding?.root?.setOnTouchListener(object : OnTouchListener {
             val floatWindowLayoutUpdateParam = floatWindowLayoutParam
             var x = 0.0
             var y = 0.0
@@ -112,32 +91,12 @@ class ForegroundService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         floatWindowLayoutUpdateParam!!.x = (x + event.rawX - px).toInt()
                         floatWindowLayoutUpdateParam.y = (y + event.rawY - py).toInt()
-                        windowManager?.updateViewLayout(floatView, floatWindowLayoutUpdateParam)
+                        windowManager?.updateViewLayout(binding?.root, floatWindowLayoutUpdateParam)
                     }
                 }
                 return false
             }
         })
-
-        descEditArea?.setOnTouchListener { _, _ ->
-            descEditArea?.isCursorVisible = true
-            val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam
-            floatWindowLayoutParamUpdateFlag?.flags =
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            windowManager?.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
-            false
-        }
-
-        saveBtn?.setOnClickListener {
-            Common.savedDesc = descEditArea?.text.toString()
-            descEditArea?.isCursorVisible = false
-            val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam
-            floatWindowLayoutParamUpdateFlag?.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-            windowManager?.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
-            val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-            inputMethodManager.hideSoftInputFromWindow(binding?.root?.applicationWindowToken, 0)
-            Toast.makeText(this@ForegroundService, "Text Saved?!", Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun turnOnFlash() {
