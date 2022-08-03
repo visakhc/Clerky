@@ -24,14 +24,55 @@ class ForegroundService : Service() {
     private var floatWindowLayoutParam: WindowManager.LayoutParams? = null
     private var windowManager: WindowManager? = null
     private var binding: FloatingLayoutBinding? = null
+
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
 
+        setUpFloatView()
+        handleFloatingView()
+        handleEvents()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun handleFloatingView() {
+        binding?.root?.setOnTouchListener(object : OnTouchListener {
+            val floatWindowLayoutUpdateParam = floatWindowLayoutParam
+            var x = 0.0
+            var y = 0.0
+            var px = 0.0
+            var py = 0.0
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        x = floatWindowLayoutUpdateParam!!.x.toDouble()
+                        y = floatWindowLayoutUpdateParam.y.toDouble()
+                        px = event.rawX.toDouble()
+                        py = event.rawY.toDouble()
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        floatWindowLayoutUpdateParam!!.x = (x + event.rawX - px).toInt()
+                        floatWindowLayoutUpdateParam.y = (y + event.rawY - py).toInt()
+                        windowManager?.updateViewLayout(binding?.root, floatWindowLayoutUpdateParam)
+                    }
+                }
+                return false
+            }
+        })
+    }
+
+    private fun handleEvents() {
+
+        binding?.btTorch?.setOnClickListener {
+            turnOnFlash()
+        }
+
+    }
+
+    private fun setUpFloatView() {
         val metrics = applicationContext.resources.displayMetrics
         val width = metrics.widthPixels
         val height = metrics.heightPixels
@@ -68,35 +109,6 @@ class ForegroundService : Service() {
         floatWindowLayoutParam?.y = 0
 
         windowManager?.addView(binding?.root, floatWindowLayoutParam)
-
-        binding?.btTorch?.setOnClickListener {
-            turnOnFlash()
-        }
-
-
-        binding?.root?.setOnTouchListener(object : OnTouchListener {
-            val floatWindowLayoutUpdateParam = floatWindowLayoutParam
-            var x = 0.0
-            var y = 0.0
-            var px = 0.0
-            var py = 0.0
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        x = floatWindowLayoutUpdateParam!!.x.toDouble()
-                        y = floatWindowLayoutUpdateParam.y.toDouble()
-                        px = event.rawX.toDouble()
-                        py = event.rawY.toDouble()
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        floatWindowLayoutUpdateParam!!.x = (x + event.rawX - px).toInt()
-                        floatWindowLayoutUpdateParam.y = (y + event.rawY - py).toInt()
-                        windowManager?.updateViewLayout(binding?.root, floatWindowLayoutUpdateParam)
-                    }
-                }
-                return false
-            }
-        })
     }
 
     private fun turnOnFlash() {
