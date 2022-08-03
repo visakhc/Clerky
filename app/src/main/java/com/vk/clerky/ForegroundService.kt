@@ -1,7 +1,11 @@
 package com.vk.clerky
 
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
@@ -11,26 +15,25 @@ import android.os.Build
 import android.os.IBinder
 import android.view.*
 import android.view.View.OnTouchListener
-import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
 import com.vk.clerky.databinding.FloatingLayoutBinding
 
 
-@RequiresApi(Build.VERSION_CODES.M)
 class ForegroundService : Service() {
     private var flashStatus: Boolean = false
-
     private var floatView: ViewGroup? = null
     private var LAYOUT_TYPE = 0
     private var floatWindowLayoutParam: WindowManager.LayoutParams? = null
     private var windowManager: WindowManager? = null
     private var binding: FloatingLayoutBinding? = null
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
 
     override fun onCreate() {
         super.onCreate()
+
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O)
+            startMyOwnForeground()
+        else startForeground(1, Notification())
 
         setUpFloatView()
         handleFloatingView()
@@ -139,5 +142,40 @@ class ForegroundService : Service() {
         super.onDestroy()
         stopSelf()
         windowManager?.removeView(binding?.root)
+
+        val broadcastIntent = Intent()
+        broadcastIntent.action = "restartservice"
+        broadcastIntent.setClass(this, MainActivity::class.java)
+        this.sendBroadcast(broadcastIntent)
     }
+
+    override fun onBind(p0: Intent?): IBinder? {
+        return null
+    }
+
+    private fun startMyOwnForeground() {
+        val NOTIFICATION_CHANNEL_ID = "example.permanence"
+        val channelName = "Background Service"
+        val chan = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            channelName,
+            NotificationManager.IMPORTANCE_NONE
+        )
+        chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(chan)
+        val notificationBuilder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+        val notification: Notification = notificationBuilder.setOngoing(true)
+            .setContentTitle("App is running in background")
+            .setPriority(NotificationManager.IMPORTANCE_MIN)
+            .setCategory(Notification.CATEGORY_SERVICE)
+            .build()
+        startForeground(2, notification)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        return START_STICKY
+    }
+
 }

@@ -8,11 +8,9 @@ import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
-@RequiresApi(Build.VERSION_CODES.M)
 class MainActivity : AppCompatActivity() {
 
     private var minimizeBtn: Button? = null
@@ -32,14 +30,14 @@ class MainActivity : AppCompatActivity() {
             stopService(Intent(this@MainActivity, ForegroundService::class.java))
         }
         if (checkOverlayDisplayPermission()) {
-            startService(Intent(this@MainActivity, ForegroundService::class.java))
+            startForegroundService(Intent(this@MainActivity, ForegroundService::class.java))
             finish()
         } else {
             requestOverlayDisplayPermission()
         }
         minimizeBtn?.setOnClickListener {
             if (checkOverlayDisplayPermission()) {
-                startService(Intent(this@MainActivity, ForegroundService::class.java))
+                startForegroundService(Intent(this@MainActivity, ForegroundService::class.java))
                 finish()
             } else {
                 requestOverlayDisplayPermission()
