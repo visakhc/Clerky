@@ -1,12 +1,10 @@
 package com.vk.clerky
 
-import android.R.attr.label
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -16,15 +14,17 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.os.IBinder
-import android.provider.SyncStateContract.Helpers.update
 import android.view.*
 import android.view.View.OnTouchListener
 import androidx.core.app.NotificationCompat
-import androidx.core.widget.doOnTextChanged
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.vk.clerky.adapter.ClipboardAdapter
 import com.vk.clerky.databinding.FloatingLayoutBinding
 
 
-class ForegroundService : Service() {
+class ForegroundService : Service(), ClipboardAdapter.OnClickListener,
+    ClipboardManager.OnPrimaryClipChangedListener {
+    lateinit var   clipboard: ClipboardManager
     private var flashStatus: Boolean = false
     private var floatView: ViewGroup? = null
     private var LAYOUT_TYPE = 0
@@ -32,17 +32,36 @@ class ForegroundService : Service() {
     private var windowManager: WindowManager? = null
     private var binding: FloatingLayoutBinding? = null
 
-
+    private val clipboardAdapter by lazy { ClipboardAdapter(this) }
     override fun onCreate() {
         super.onCreate()
 
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O)
             startMyOwnForeground()
         else startForeground(1, Notification())
-
+          clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         setUpFloatView()
         handleFloatingView()
         handleEvents()
+        clipDataToAdapter()
+    }
+
+
+    private fun clipDataToAdapter() {
+
+        //  binding?.viewMain?.hide()
+
+        val clip = clipboard.primaryClip
+        clipboard.addPrimaryClipChangedListener(this)
+        binding?.viewClipRecycler?.show()
+        binding?.rvClipText?.apply {
+            layoutManager = LinearLayoutManager(this@ForegroundService)
+            adapter = clipboardAdapter
+        }
+        // longToast(clip?.label.toString())
+
+        clipboardAdapter.updateList(clipboard.primaryClipDescription?.label.toString())
+        //   binding?.etAddToClipboard?.setText(clip?.toString())
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -93,6 +112,7 @@ class ForegroundService : Service() {
         windowManager!!.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
 
     }
+
     private fun handleEvents() {
 /*
 binding?.etAddToClipboard?.performClick()
@@ -202,8 +222,10 @@ binding?.etAddToClipboard?.performClick()
     override fun onDestroy() {
         super.onDestroy()
         stopSelf()
+        val clipboard: ClipboardManager =
+            getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         windowManager?.removeView(binding?.root)
-
+        clipboard.removePrimaryClipChangedListener(this)
         val broadcastIntent = Intent()
         broadcastIntent.action = "restartservice"
         broadcastIntent.setClass(this, MainActivity::class.java)
@@ -237,6 +259,14 @@ binding?.etAddToClipboard?.performClick()
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY
+    }
+
+    override fun onItemClick(text: String) {
+        shortToast(text)
+    }
+
+    override fun onPrimaryClipChanged() {
+        clipboardAdapter.updateList(clipboard.primaryClipDescription?.label.toString())
     }
 
 }
