@@ -48,11 +48,24 @@
 
     <ImageView
         android:id="@+id/btClipboard"
-        android:layout_width="@dimen/_20sdp"
-        android:layout_height="@dimen/_20sdp"
-        android:padding="@dimen/_2sdp"
+        android:layout_width="@dimen/_25sdp"
+        android:layout_height="@dimen/_25sdp"
         android:src="@drawable/ic_copy"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/etAddToClipboard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="type to save"
+        android:focusable="true"
+        android:clickable="true"
+        android:textColorHint="#A9FFFFFF"
+        android:textColor="@color/ashColor"
+        android:visibility="visible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,10 +1,13 @@
 package com.vk.clerky
 
+import android.R.attr.label
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,9 +16,11 @@ import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.os.Build
 import android.os.IBinder
+import android.provider.SyncStateContract.Helpers.update
 import android.view.*
 import android.view.View.OnTouchListener
 import androidx.core.app.NotificationCompat
+import androidx.core.widget.doOnTextChanged
 import com.vk.clerky.databinding.FloatingLayoutBinding
 
 
@@ -67,12 +72,71 @@ class ForegroundService : Service() {
         })
     }
 
-    private fun handleEvents() {
+    private fun enableKeyboard() {
+        val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam!!
 
+        if (floatWindowLayoutParamUpdateFlag.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0) {
+            floatWindowLayoutParamUpdateFlag.flags =
+                floatWindowLayoutParamUpdateFlag.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        }
+        windowManager!!.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
+
+    }
+
+    private fun disableKeyboard() {
+        val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam!!
+
+        if (floatWindowLayoutParamUpdateFlag.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE == 0) {
+            floatWindowLayoutParamUpdateFlag.flags =
+                floatWindowLayoutParamUpdateFlag.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        windowManager!!.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
+
+    }
+    private fun handleEvents() {
+/*
+binding?.etAddToClipboard?.performClick()
+*/
         binding?.btTorch?.setOnClickListener {
             turnOnFlash()
         }
+        binding?.btClipboard?.setOnClickListener {
+            //   binding?.etAddToClipboard?.show()
+            val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam!!
+            //Layout Flag is changed to FLAG_NOT_TOUCH_MODAL which helps to take inputs inside floating window, but
+            //while in EditText the back button won't work and FLAG_LAYOUT_IN_SCREEN flag helps to keep the window
+            //always over the keyboard
+            floatWindowLayoutParamUpdateFlag.flags =
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            //WindowManager is updated with the Updated Parameters
+            windowManager!!.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
+            // enableKeyboard()
 
+        }
+        binding?.btData?.setOnClickListener {
+            val clipboard: ClipboardManager =
+                getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = clipboard.primaryClip
+
+            binding?.etAddToClipboard?.setText(clip?.toString())
+        }
+
+        //Floating Window Layout Flag is set to FLAG_NOT_FOCUSABLE, so no input is possible to the EditText. But that's a problem.
+        //So, the problem is solved here. The Layout Flag is changed when the EditText is touched.
+        /*  binding?.etAddToClipboard?.setOnTouchListener(OnTouchListener { v, event ->
+  *//*
+            binding?.etAddToClipboard?.setCursorVisible(true)
+*//*
+            val floatWindowLayoutParamUpdateFlag = floatWindowLayoutParam!!
+            //Layout Flag is changed to FLAG_NOT_TOUCH_MODAL which helps to take inputs inside floating window, but
+            //while in EditText the back button won't work and FLAG_LAYOUT_IN_SCREEN flag helps to keep the window
+            //always over the keyboard
+            floatWindowLayoutParamUpdateFlag.flags =
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            //WindowManager is updated with the Updated Parameters
+            windowManager!!.updateViewLayout(binding?.root, floatWindowLayoutParamUpdateFlag)
+            false
+        })*/
     }
 
     private fun setUpFloatView() {
@@ -92,18 +156,14 @@ class ForegroundService : Service() {
         // saveBtn = floatView?.findViewById(R.id.saveBtn)
 
 
-        LAYOUT_TYPE = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            WindowManager.LayoutParams.TYPE_TOAST
-        }
+        LAYOUT_TYPE = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         floatWindowLayoutParam = WindowManager.LayoutParams(
 /*(width * 0.25f).toInt(), (height * 0.58f).toInt(),*/
             /*   LinearLayout.LayoutParams.WRAP_CONTENT,
                LinearLayout.LayoutParams.WRAP_CONTENT,*/
             700, 700,
             LAYOUT_TYPE,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         )
 
@@ -112,6 +172,7 @@ class ForegroundService : Service() {
         floatWindowLayoutParam?.y = 0
 
         windowManager?.addView(binding?.root, floatWindowLayoutParam)
+        // windowManager?.addView(floatView, floatWindowLayoutParam)
     }
 
     private fun turnOnFlash() {
