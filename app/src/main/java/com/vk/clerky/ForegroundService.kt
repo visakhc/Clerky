@@ -9,28 +9,35 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.graphics.PixelFormat
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
+import android.net.Uri
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.provider.MediaStore
 import android.view.*
 import android.view.View.OnTouchListener
 import androidx.core.app.NotificationCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import coil.load
 import com.vk.clerky.adapter.ClipboardAdapter
 import com.vk.clerky.databinding.FloatingLayoutBinding
 
 
 class ForegroundService : Service(), ClipboardAdapter.OnClickListener,
     ClipboardManager.OnPrimaryClipChangedListener {
-    lateinit var   clipboard: ClipboardManager
+    lateinit var clipboard: ClipboardManager
     private var flashStatus: Boolean = false
     private var floatView: ViewGroup? = null
     private var LAYOUT_TYPE = 0
     private var floatWindowLayoutParam: WindowManager.LayoutParams? = null
     private var windowManager: WindowManager? = null
     private var binding: FloatingLayoutBinding? = null
+    private var screenshotPath = ""
 
     private val clipboardAdapter by lazy { ClipboardAdapter(this) }
     override fun onCreate() {
@@ -39,7 +46,7 @@ class ForegroundService : Service(), ClipboardAdapter.OnClickListener,
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O)
             startMyOwnForeground()
         else startForeground(1, Notification())
-          clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         setUpFloatView()
         handleFloatingView()
         handleEvents()
@@ -114,6 +121,11 @@ class ForegroundService : Service(), ClipboardAdapter.OnClickListener,
     }
 
     private fun handleEvents() {
+        contentResolver.registerContentObserver(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            true,
+            contentObserver
+        )
 /*
 binding?.etAddToClipboard?.performClick()
 */
@@ -195,6 +207,70 @@ binding?.etAddToClipboard?.performClick()
         // windowManager?.addView(floatView, floatWindowLayoutParam)
     }
 
+    private val contentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: Uri?) {
+            super.onChange(selfChange, uri)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                /*    queryRelativeDataColumn(uri!!)*/queryDataColumn(uri!!)
+            } else {
+                queryDataColumn(uri!!)
+            }
+        }
+    }
+
+    private fun queryDataColumn(uri: Uri) {
+        val projection = arrayOf(
+            MediaStore.Images.Media.DATA
+        )
+        contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val dataColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+            while (cursor.moveToNext()) {
+                val path = cursor.getString(dataColumn)
+                if (path.contains("screenshot", true) and (screenshotPath != path)) {
+                    screenshotPath = path
+                    binding?.btData?.load(screenshotPath)
+                    logThis("[queryDataColumn] Took Screenshot  $path")
+                }
+            }
+        }
+    }
+
+    private fun queryRelativeDataColumn(uri: Uri) {
+        val projection = arrayOf(
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.RELATIVE_PATH
+        )
+        contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val relativePathColumn =
+                cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+            val displayNameColumn =
+                cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(displayNameColumn)
+                val relativePath = cursor.getString(relativePathColumn)
+                if (name.contains("screenshot", true) or
+                    relativePath.contains("screenshot", true) and (screenshotPath != name)
+                ) {
+                    screenshotPath = relativePath
+                    logThis("[queryRelativeDataColumn] Took Screenshot $name $relativePath")
+                }
+            }
+        }
+    }
+
+
     private fun turnOnFlash() {
         val isFlashAvailable =
             applicationContext.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT)
@@ -222,6 +298,7 @@ binding?.etAddToClipboard?.performClick()
     override fun onDestroy() {
         super.onDestroy()
         stopSelf()
+        /**/contentResolver.unregisterContentObserver(contentObserver)
         val clipboard: ClipboardManager =
             getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
         windowManager?.removeView(binding?.root)
